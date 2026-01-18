@@ -1,8 +1,12 @@
 import requests
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
+from rich.console import Console
+from rich.markdown import Markdown
 import json
 import os
+
+console = Console()
 
 
 def resume(text: str) -> str | None:
@@ -10,11 +14,28 @@ def resume(text: str) -> str | None:
     API_KEY = os.getenv("API_KEY")
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key={API_KEY}"
     headers = {"Content-Type": "application/json"}
-    data = {
-        "contents": [
-            {"parts": [{"text": f"Resume and list important points:\n{text}"}]}
-        ]
-    }
+    promt = f"""
+                Actúa como un analista de datos especializado en extracción de información y síntesis de textos. 
+
+                Tu tarea es procesar el texto que se proporciona a continuación y extraer exclusivamente los puntos más relevantes organizados en las siguientes categorías:
+
+                1. **Fechas específicas**: Días, meses o años exactos de eventos clave.
+                2. **Sucesos importantes**: Hitos o acciones principales narradas en el texto.
+                3. **Periodos relevantes**: Intervalos de tiempo o eras mencionadas.
+                4. **Lugares clave**: Ubicaciones geográficas, ciudades o recintos específicos.
+                5. **Personas clave**: Nombres de figuras individuales o grupos de personas determinantes.
+
+                ### Instrucciones Adicionales:
+                - Mantén las descripciones breves y directas.
+                - Si una categoría no tiene información relevante en el texto, escribe "No mencionado".
+                - Devuelve la información en formato [Markdown con viñetas].
+                - No añadas información externa; cíñete estrictamente al contenido del texto.
+                - Omite cualuier comentario tuyo. El principio y al final del texto no debe haber comentarios.
+
+                ### Texto a analizar:
+                [{text}]
+                """
+    data = {"contents": [{"parts": [{"text": promt}]}]}
 
     try:
         response = requests.post(url, headers=headers, data=json.dumps(data))
@@ -28,7 +49,7 @@ def resume(text: str) -> str | None:
 
 def get_page(url: str) -> BeautifulSoup:
     headers = {
-        "User-Agent": "ScrapingWikipedia/1.0 (https://ejemplo.com/contacto; mi-email@ejemplo.com) requests-library"
+        "User-Agent": "ScrapingWikipedia/1.0 (https://github.com/valenciaDev74/scraping-wikipedia; https://github.com/valenciaDev74) requests-library"
     }
     response = requests.get(url, timeout=10, headers=headers)
     soup = BeautifulSoup(
@@ -40,7 +61,7 @@ def get_page(url: str) -> BeautifulSoup:
 
 def get_page_text(url: str) -> str:
     soup = get_page(url)
-    text = soup.find("div", {"id": "bodyContent"}).text
+    # text = soup.find("div", {"id": "bodyContent"}).text # type: ignore
     paragraphs = soup.find_all("p")
     full_text = "\n".join(
         [
@@ -54,10 +75,11 @@ def get_page_text(url: str) -> str:
 
 def main():
     url = input("Enter a URL: ")
-    text = get_page_text(url)
-    resumed_text = resume(text)
-    print(resumed_text)
-    print("Hello from scraping-wikipedia!")
+    text = resume(get_page_text(url))
+    if text is None:
+        return
+    text = Markdown(text)
+    console.print(text)
 
 
 if __name__ == "__main__":
