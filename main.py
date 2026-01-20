@@ -3,10 +3,19 @@ from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 from rich.console import Console
 from rich.markdown import Markdown
+from urllib.parse import urlparse
 import json
 import os
 
 console = Console()
+
+
+def is_wp_url(url: str) -> bool:
+    parsed_url = urlparse(url)
+    domain = parsed_url.netloc.lower()
+    if domain == "wikipedia.org" or domain.endswith(".wikipedia.org"):
+        return True
+    return False
 
 
 def resume(text: str) -> str | None:
@@ -17,7 +26,8 @@ def resume(text: str) -> str | None:
     promt = f"""
                 Actúa como un analista de datos especializado en extracción de información y síntesis de textos. 
 
-                Tu tarea es procesar el texto que se proporciona a continuación y extraer exclusivamente los puntos más relevantes organizados en las siguientes categorías:
+                Tu tarea es procesar el texto que se proporciona a continuación y extraer exclusivamente los
+                puntos más relevantes organizados en las siguientes categorías:
 
                 1. **Fechas específicas**: Días, meses o años exactos de eventos clave.
                 2. **Sucesos importantes**: Hitos o acciones principales narradas en el texto.
@@ -44,7 +54,8 @@ def resume(text: str) -> str | None:
         resumed_text = result["candidates"][0]["content"]["parts"][0]["text"]
         return resumed_text
     except requests.exceptions.RequestException as e:
-        print(f"Error to request: {e}")
+        console.print(f"[red]Error to request: {e}[/red]")
+        return None
 
 
 def get_page(url: str) -> BeautifulSoup:
@@ -75,6 +86,9 @@ def get_page_text(url: str) -> str:
 
 def main():
     url = input("Enter a URL: ")
+    if not is_wp_url(url):
+        console.print("[red]The URL provided is not a Wikipedia link.[/red]")
+        return
     text = resume(get_page_text(url))
     if text is None:
         return
